@@ -38,6 +38,10 @@ void loop() {
   // Generate random prompt
   String prompt = generatePrompt();
   displayText(prompt);
+
+  if (prompt == "Twist It!") {
+    LastState = digitalRead(outputA); // reset to avoid false positives
+  }
   
   // Set the start time for the 2-second timer
   startTime = millis();
@@ -51,13 +55,15 @@ void loop() {
       displayText("Success!");
       delay(500);
       score += 10;
-      timeAlotted -= 250;
-      LastState = currentState;  // Save the current state for next comparison
+
+      if (timeAlotted < 1000) {
+        timeAlotted -= 50;
+      } else {
+        timeAlotted -= 250;
+      }
+    
       return;
     }
-
-    LastState = currentState;  // Save the current state for next comparison
-
   }
   
   // If we get here, the 2 seconds elapsed without correct input
