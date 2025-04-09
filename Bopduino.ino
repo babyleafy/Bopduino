@@ -13,7 +13,8 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 const int playButton = 13;  // Button pin
 int currentState, LastState;
 unsigned long startTime;   // For tracking prompt timing
-bool rotaryMoved = false;  // Flag to track rotary encoder movement
+int score = 0; // Tracking score
+int timeAlotted = 3000;
 
 // Setup
 void setup() {
@@ -36,43 +37,53 @@ void setup() {
 void loop() {
   // Generate random prompt
   String prompt = generatePrompt();
-  
-  // Display the prompt
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(prompt);
+  displayText(prompt);
+
+  if (prompt == "Twist It!") {
+    LastState = digitalRead(outputA); // reset to avoid false positives
+  }
   
   // Set the start time for the 2-second timer
   startTime = millis();
-  rotaryMoved = false;
   
   // Loop for 2 seconds waiting for input
-  while (millis() - startTime < 2000) {
+  while (millis() - startTime < timeAlotted) {
     
     // Check for button press if prompt is "Press It!"
-    if (prompt == "Press It!") {
-      if (digitalRead(playButton) == HIGH) {  // Button is pressed (LOW because of INPUT_PULLUP)
-        color(true);  // Success!
-        delay(1000);  // Pause to see the LED
-        return;       // Exit the function to generate a new prompt
+    if (checkSuccess(prompt)) {
+      color(true);  // Success!
+      displayText("Success!");
+      delay(500);
+      score += 10;
+
+      if (timeAlotted < 1000) {
+        timeAlotted -= 50;
+      } else {
+        timeAlotted -= 250;
       }
-    } else if (prompt == "Twist It!") { // Check for rotary encoder movement if prompt is "Twist It!"
-      currentState = digitalRead(outputA);
-      
-      // If state changed (encoder moved)
-      if (currentState != LastState) {
-        rotaryMoved = true;
-        color(true);  // Success!
-        delay(1000);  // Pause to see the LED
-        return;       // Exit the function to generate a new prompt
-      }
-      LastState = currentState;  // Save the current state for next comparison
+    
+      return;
     }
   }
   
   // If we get here, the 2 seconds elapsed without correct input
   color(false);  // Failure
+  displayText("Failed!");
   delay(1000);   // Pause to see the LED
+  endState();
+}
+
+bool checkSuccess(String prompt) {
+  if (prompt == "Press It!") {
+    if (digitalRead(playButton) == HIGH) {
+      return true;
+    }
+  } else if (prompt == "Twist It!") { // Check for rotary encoder movement if prompt is "Twist It!"
+    currentState = digitalRead(outputA);
+    return (currentState != LastState);
+  }
+
+  return false;
 }
 
 // This function chooses which LED to light up
@@ -102,4 +113,19 @@ String generatePrompt() {
   } else {
     return "Twist It!";
   }
+}
+
+void displayText(String prompt) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(prompt);
+}
+
+void endState() {
+  displayText("Your score: " + String(score));
+  while(digitalRead(playButton) == LOW) {
+    delay(50);
+  }
+  score = 0;
+  timeAlotted = 3000;
 }
