@@ -1,12 +1,15 @@
-#include <LiquidCrystal.h>
+// #include <LiquidCrystal.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 
 //LED pins
 #define red 6     // Pin for red LED
 #define green 7  // Pin for green LED
 
 //LCD setup
-const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+// const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
+// LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 #define outputA 8   // Rotary encoder pin A
 #define outputB 9  // Rotary encoder pin B
@@ -20,7 +23,8 @@ int timeAlotted = 3000;
 void setup() {
   pinMode(red, OUTPUT);
   pinMode(green, OUTPUT);
-  lcd.begin(16, 2);
+  lcd.init();
+  lcd.backlight();
   pinMode(outputA, INPUT);
   pinMode(outputB, INPUT);
   pinMode(playButton, INPUT);  
@@ -28,6 +32,7 @@ void setup() {
   LastState = digitalRead(outputA);
   
   // Display welcome message for 2 seconds
+  lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Play BopDuino!");
   delay(2000);
