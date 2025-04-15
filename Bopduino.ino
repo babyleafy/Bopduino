@@ -26,6 +26,14 @@ float ax, ay, az;                        // Tilt calculations
 float start_ax, start_ay, start_az;      // Store initial position values
 bool hasTilted = false;                  // Track if device has been tilted
 
+// Enumeration for different successes
+enum ACTION {
+  PRESS,
+  TWIST,
+  TILT,
+  FAIL
+};
+
 // Setup
 void setup() {
   pinMode(red, OUTPUT);
@@ -57,31 +65,29 @@ void setup() {
 
 void loop() {
   // Generate random prompt
-  String prompt = generatePrompt();
-  displayText(prompt);
+  ACTION prompt = generatePrompt();
+  displayAction(prompt);
 
-  if (prompt == "Twist It!") {
-    LastState = digitalRead(outputA); // reset to avoid false positives
-  }
+  // Store initial position of rotary encoder
+  LastState = digitalRead(outputA);
   
-  // If prompt is "Tilt It!", store initial position
-  if (prompt == "Tilt It!") {
-    // Read and store current accelerometer position as reference point
-    updateAccelData();
-    start_ax = ax; // Store initial x position
-    start_ay = ay; // Store initial y position 
-    start_az = az; // Store initial z position
-    hasTilted = false; // Reset tilt state
-  }
-  
+  // Store initial position
+  updateAccelData();
+  start_ax = ax; // Store initial x position
+  start_ay = ay; // Store initial y position 
+  start_az = az; // Store initial z position
+  Serial.println("start_ax:" + String(start_ax));
+  Serial.println("start_ay:" + String(start_ay));
+  Serial.println("start_az:" + String(start_az));
+
   // Set the start time for the timer
   startTime = millis();
   
   // Loop waiting for input
   while (millis() - startTime < timeAlotted) {
+    ACTION result = checkAction();
     
-    // Check for button press if prompt is "Press It!"
-    if (checkSuccess(prompt)) {
+    if (result == prompt) {
       color(true);  // Success!
       displayText("Success!");
       delay(500);
@@ -94,6 +100,10 @@ void loop() {
       }
     
       return;
+    } else if (result == FAIL) {
+      continue;
+    } else {
+      break;
     }
   }
   
@@ -123,34 +133,37 @@ void updateAccelData() {
   az = accel_z / 16384.0;
 }
 
-bool checkSuccess(String prompt) {
-  if (prompt == "Press It!") {
-    if (digitalRead(playButton) == HIGH) {
-      return true;
-    }
-  } else if (prompt == "Twist It!") { // Check for rotary encoder movement if prompt is "Twist It!"
-    currentState = digitalRead(outputA);
-    return (currentState != LastState);
-  } else if (prompt == "Tilt It!") { // Check for tilt if prompt is "Tilt It!"
-    updateAccelData();
-    
-    // Calculate the angle between current and starting vectors
-    // Using the dot product formula: cos(θ) = (a·b)/(|a|×|b|)
-    float dotProduct = ax*start_ax + ay*start_ay + az*start_az;
-    float magA = sqrt(ax*ax + ay*ay + az*az);
-    float magB = sqrt(start_ax*start_ax + start_ay*start_ay + start_az*start_az);
-    
-    // Calculate angle between vectors in degrees
-    float angle = acos(dotProduct/(magA*magB)) * 180.0 / PI;
-    
-    // Success if tilted at least 60 degrees from starting position
-    if (angle > 60 && !hasTilted) {
-      hasTilted = true;
-      return true;
-    }
+ACTION checkAction() {
+  // If button was pressed
+  if (digitalRead(playButton) == HIGH) {
+    return PRESS;
   }
 
-  return false;
+  // If rotary encoder was twisted
+  currentState = digitalRead(outputA);
+  if (currentState != LastState) {
+    return TWIST;
+  }
+
+  updateAccelData();
+
+  // Calculate the angle between current and starting vectors
+  // Using the dot product formula: cos(θ) = (a·b)/(|a|×|b|)
+  float dotProduct = ax*start_ax + ay*start_ay + az*start_az;
+  float magA = sqrt(ax*ax + ay*ay + az*az);
+  float magB = sqrt(start_ax*start_ax + start_ay*start_ay + start_az*start_az);
+  
+  // Calculate angle between vectors in degrees
+  float angle = acos(dotProduct/(magA*magB)) * 180.0 / PI;
+
+  // Success if tilted at least 60 degrees from starting position
+  if (angle > 60) {
+    hasTilted = true;
+    return TILT;
+  }
+
+
+  return FAIL;
 }
 
 // This function chooses which LED to light up
@@ -171,16 +184,33 @@ void color(bool success) {
 }
 
 // Randomly generate a prompt
-String generatePrompt() {
+ACTION generatePrompt() {
   // Random number: 0, 1, or 2
-  int choice = random(3); // Modified to include third option
+  int choice = random(3);
   
   if (choice == 0) {
-    return "Press It!";
+    return PRESS;
   } else if (choice == 1) {
-    return "Twist It!";
+    return TWIST;
   } else {
-    return "Tilt It!";
+    return TILT;
+  }
+}
+
+void displayAction(ACTION action) {
+  switch (action) {
+    case PRESS:
+      displayText("Press It!");
+      break;
+    case TWIST:
+      displayText("Twist It!");
+      break;
+    case TILT:
+      displayText("Tilt It!");
+      break;
+    default:
+      displayText("Cooked.");
+      break;
   }
 }
 
@@ -197,4 +227,6 @@ void endState() {
   }
   score = 0;
   timeAlotted = 3000;
+  displayText("Play Bopduino!");
+  delay(2000);
 }
