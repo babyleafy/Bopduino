@@ -1,19 +1,23 @@
 #include <Wire.h>
 #include <LiquidCrystal.h>
+#include <SPI.h>
+#include <MFRC522.h>
 
 //LED pins
 #define red 6     // Pin for red LED
 #define green 7  // Pin for green LED
 
 //LCD setup
-const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
+const int rs = 16, en = 17, d4 = 5, d5 = 4, d6 = 3, d7 = 2;  // A1 and A2 for rs and en
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
-
 
 // Sensor setup
 #define outputA 8   // Rotary encoder pin A
 #define outputB 9  // Rotary encoder pin B
-const int playButton = 13;  // Button pin
+#define SS_PIN 14 // RFID SS pin (A0)
+#define RST_PIN 15 // RFID RST pin (A1)
+MFRC522 mfrc522(SS_PIN, RST_PIN); // RFID instance.
+const int playButton = 1;  // Button pin
 const int MPU_addr = 0x68; 
 int currentState, LastState;
 unsigned long startTime;   // For tracking prompt timing
@@ -31,6 +35,7 @@ enum ACTION {
   PRESS,
   TWIST,
   TILT,
+  SCAN,
   FAIL
 };
 
@@ -56,6 +61,10 @@ void setup() {
   // For ±250 deg/s, the default value (0) is fine.
   Serial.println("MPU6500 Initialized.");
   
+  // For RFID
+  SPI.begin();      // Initiate  SPI bus
+  mfrc522.PCD_Init();   // Initiate MFRC522
+
   // Display welcome message for 2 seconds
   lcd.setCursor(0, 0);
   lcd.print("Play BopDuino!");
@@ -76,9 +85,6 @@ void loop() {
   start_ax = ax; // Store initial x position
   start_ay = ay; // Store initial y position 
   start_az = az; // Store initial z position
-  Serial.println("start_ax:" + String(start_ax));
-  Serial.println("start_ay:" + String(start_ay));
-  Serial.println("start_az:" + String(start_az));
 
   // Set the start time for the timer
   startTime = millis();
@@ -93,10 +99,10 @@ void loop() {
       delay(500);
       score += 10;
 
-      if (timeAlotted < 1000) {
+      if (timeAlotted < 1250) {
         timeAlotted -= 50;
       } else {
-        timeAlotted -= 250;
+        timeAlotted -= 200;
       }
     
       return;
@@ -145,6 +151,7 @@ ACTION checkAction() {
     return TWIST;
   }
 
+  // If MPU was tilted
   updateAccelData();
 
   // Calculate the angle between current and starting vectors
@@ -162,6 +169,15 @@ ACTION checkAction() {
     return TILT;
   }
 
+  // If there was any RFID scan
+    // Check for RFID card
+  if (mfrc522.PICC_IsNewCardPresent()) {
+    // Card is present, attempt to read it
+    if (mfrc522.PICC_ReadCardSerial()) {
+      mfrc522.PICC_HaltA(); // Stop reading
+      return SCAN;
+    }
+  }
 
   return FAIL;
 }
@@ -185,15 +201,17 @@ void color(bool success) {
 
 // Randomly generate a prompt
 ACTION generatePrompt() {
-  // Random number: 0, 1, or 2
-  int choice = random(3);
+  // Random number: 0, 1, 2, or 3
+  int choice = random(4);
   
   if (choice == 0) {
     return PRESS;
   } else if (choice == 1) {
     return TWIST;
-  } else {
+  } else if (choice == 2) {
     return TILT;
+  } else {
+    return SCAN;
   }
 }
 
@@ -207,6 +225,9 @@ void displayAction(ACTION action) {
       break;
     case TILT:
       displayText("Tilt It!");
+      break;
+    case SCAN:
+      displayText("Scan It!");
       break;
     default:
       displayText("Cooked.");
@@ -222,6 +243,8 @@ void displayText(String prompt) {
 
 void endState() {
   displayText("Your score: " + String(score));
+  lcd.setCursor(0, 1);
+  lcd.print("Press to play!");
   while(digitalRead(playButton) == LOW) {
     delay(50);
   }
