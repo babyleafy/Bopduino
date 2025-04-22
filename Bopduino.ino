@@ -9,10 +9,11 @@
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
-
 // Sensor setup
 #define outputA 8   // Rotary encoder pin A
 #define outputB 9  // Rotary encoder pin B
+#define SS_PIN SDA_PIN // RFID SS pin
+#define RST_PIN 14 // RFID RST pin (A0)
 const int playButton = 13;  // Button pin
 const int MPU_addr = 0x68; 
 int currentState, LastState;
@@ -31,6 +32,7 @@ enum ACTION {
   PRESS,
   TWIST,
   TILT,
+  SWIPE,
   FAIL
 };
 
@@ -93,10 +95,10 @@ void loop() {
       delay(500);
       score += 10;
 
-      if (timeAlotted < 1000) {
+      if (timeAlotted < 1250) {
         timeAlotted -= 50;
       } else {
-        timeAlotted -= 250;
+        timeAlotted -= 150;
       }
     
       return;
@@ -162,7 +164,6 @@ ACTION checkAction() {
     return TILT;
   }
 
-
   return FAIL;
 }
 
@@ -185,15 +186,17 @@ void color(bool success) {
 
 // Randomly generate a prompt
 ACTION generatePrompt() {
-  // Random number: 0, 1, or 2
-  int choice = random(3);
+  // Random number: 0, 1, 2, or 3
+  int choice = random(4);
   
   if (choice == 0) {
     return PRESS;
   } else if (choice == 1) {
     return TWIST;
-  } else {
+  } else if (choice == 2) {
     return TILT;
+  } else {
+    return SWIPE;
   }
 }
 
@@ -207,6 +210,9 @@ void displayAction(ACTION action) {
       break;
     case TILT:
       displayText("Tilt It!");
+      break;
+    case SWIPE:
+      displayText("Swipe It!");
       break;
     default:
       displayText("Cooked.");
@@ -222,6 +228,8 @@ void displayText(String prompt) {
 
 void endState() {
   displayText("Your score: " + String(score));
+  lcd.setCursor(0, 1);
+  lcd.print("Press the button to play again!");
   while(digitalRead(playButton) == LOW) {
     delay(50);
   }
