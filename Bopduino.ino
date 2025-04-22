@@ -8,7 +8,7 @@
 #define green 7  // Pin for green LED
 
 //LCD setup
-const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
+const int rs = 15, en = 16, d4 = 5, d5 = 4, d6 = 3, d7 = 2;  // A1 and A2 for rs and en
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 // Sensor setup
