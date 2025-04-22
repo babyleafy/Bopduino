@@ -1,5 +1,7 @@
 #include <Wire.h>
 #include <LiquidCrystal.h>
+#include <SPI.h>
+#include <MFRC522.h>
 
 //LED pins
 #define red 6     // Pin for red LED
@@ -12,9 +14,10 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 // Sensor setup
 #define outputA 8   // Rotary encoder pin A
 #define outputB 9  // Rotary encoder pin B
-#define SS_PIN SDA_PIN // RFID SS pin
+#define SS_PIN SDA // RFID SS pin
 #define RST_PIN 14 // RFID RST pin (A0)
-const int playButton = 13;  // Button pin
+MFRC522 mfrc522(SS_PIN, RST_PIN); // RFID instance.
+const int playButton = 1;  // Button pin
 const int MPU_addr = 0x68; 
 int currentState, LastState;
 unsigned long startTime;   // For tracking prompt timing
@@ -32,7 +35,7 @@ enum ACTION {
   PRESS,
   TWIST,
   TILT,
-  SWIPE,
+  SCAN,
   FAIL
 };
 
@@ -58,6 +61,10 @@ void setup() {
   // For ±250 deg/s, the default value (0) is fine.
   Serial.println("MPU6500 Initialized.");
   
+  // For RFID
+  SPI.begin();      // Initiate  SPI bus
+  mfrc522.PCD_Init();   // Initiate MFRC522
+
   // Display welcome message for 2 seconds
   lcd.setCursor(0, 0);
   lcd.print("Play BopDuino!");
@@ -78,9 +85,6 @@ void loop() {
   start_ax = ax; // Store initial x position
   start_ay = ay; // Store initial y position 
   start_az = az; // Store initial z position
-  Serial.println("start_ax:" + String(start_ax));
-  Serial.println("start_ay:" + String(start_ay));
-  Serial.println("start_az:" + String(start_az));
 
   // Set the start time for the timer
   startTime = millis();
@@ -147,6 +151,7 @@ ACTION checkAction() {
     return TWIST;
   }
 
+  // If MPU was tilted
   updateAccelData();
 
   // Calculate the angle between current and starting vectors
@@ -163,6 +168,16 @@ ACTION checkAction() {
     hasTilted = true;
     return TILT;
   }
+
+  // // If there was any RFID scan
+  //   // Check for RFID card
+  // if (mfrc522.PICC_IsNewCardPresent()) {
+  //   // Card is present, attempt to read it
+  //   if (mfrc522.PICC_ReadCardSerial()) {
+  //     mfrc522.PICC_HaltA(); // Stop reading
+  //     return SCAN;
+  //   }
+  // }
 
   return FAIL;
 }
@@ -187,7 +202,7 @@ void color(bool success) {
 // Randomly generate a prompt
 ACTION generatePrompt() {
   // Random number: 0, 1, 2, or 3
-  int choice = random(4);
+  int choice = random(3);
   
   if (choice == 0) {
     return PRESS;
@@ -196,7 +211,7 @@ ACTION generatePrompt() {
   } else if (choice == 2) {
     return TILT;
   } else {
-    return SWIPE;
+    return SCAN;
   }
 }
 
@@ -211,8 +226,8 @@ void displayAction(ACTION action) {
     case TILT:
       displayText("Tilt It!");
       break;
-    case SWIPE:
-      displayText("Swipe It!");
+    case SCAN:
+      displayText("Scan It!");
       break;
     default:
       displayText("Cooked.");
