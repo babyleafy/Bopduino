@@ -8,14 +8,14 @@
 #define green 7  // Pin for green LED
 
 //LCD setup
-const int rs = 15, en = 16, d4 = 5, d5 = 4, d6 = 3, d7 = 2;  // A1 and A2 for rs and en
+const int rs = 16, en = 17, d4 = 5, d5 = 4, d6 = 3, d7 = 2;  // A1 and A2 for rs and en
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 // Sensor setup
 #define outputA 8   // Rotary encoder pin A
 #define outputB 9  // Rotary encoder pin B
-#define SS_PIN SDA // RFID SS pin
-#define RST_PIN 14 // RFID RST pin (A0)
+#define SS_PIN 14 // RFID SS pin (A0)
+#define RST_PIN 15 // RFID RST pin (A1)
 MFRC522 mfrc522(SS_PIN, RST_PIN); // RFID instance.
 const int playButton = 1;  // Button pin
 const int MPU_addr = 0x68; 
@@ -102,7 +102,7 @@ void loop() {
       if (timeAlotted < 1250) {
         timeAlotted -= 50;
       } else {
-        timeAlotted -= 150;
+        timeAlotted -= 200;
       }
     
       return;
@@ -169,15 +169,15 @@ ACTION checkAction() {
     return TILT;
   }
 
-  // // If there was any RFID scan
-  //   // Check for RFID card
-  // if (mfrc522.PICC_IsNewCardPresent()) {
-  //   // Card is present, attempt to read it
-  //   if (mfrc522.PICC_ReadCardSerial()) {
-  //     mfrc522.PICC_HaltA(); // Stop reading
-  //     return SCAN;
-  //   }
-  // }
+  // If there was any RFID scan
+    // Check for RFID card
+  if (mfrc522.PICC_IsNewCardPresent()) {
+    // Card is present, attempt to read it
+    if (mfrc522.PICC_ReadCardSerial()) {
+      mfrc522.PICC_HaltA(); // Stop reading
+      return SCAN;
+    }
+  }
 
   return FAIL;
 }
@@ -202,7 +202,7 @@ void color(bool success) {
 // Randomly generate a prompt
 ACTION generatePrompt() {
   // Random number: 0, 1, 2, or 3
-  int choice = random(3);
+  int choice = random(4);
   
   if (choice == 0) {
     return PRESS;
@@ -244,7 +244,7 @@ void displayText(String prompt) {
 void endState() {
   displayText("Your score: " + String(score));
   lcd.setCursor(0, 1);
-  lcd.print("Press the button to play again!");
+  lcd.print("Press to play!");
   while(digitalRead(playButton) == LOW) {
     delay(50);
   }
