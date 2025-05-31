@@ -14,3 +14,6 @@ The game starts automatically on power on, and randomly generates task prompts o
 - If the player fails to complete the task in the time, they lose the game and are able to see their accumulated score.
 - If the player completes the wrong task (i.e. any task that is not the prompt), they also lose the game.
 
+## Demo
+A demo of the game in action can be accessed here: https://tinyurl.com/bopduino
+
